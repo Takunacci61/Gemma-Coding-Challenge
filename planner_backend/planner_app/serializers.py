@@ -14,6 +14,7 @@ class DailyRoutineSerializer(serializers.ModelSerializer):
 class GoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Goal
+        read_only_fields = ['feasibility_score']
         fields = ['id', 'user', 'goal_name', 'goal_description', 'goal_start_date', 'goal_end_date',
                   'feasibility_score']
 
@@ -25,7 +26,7 @@ class DailyPlanActivitySerializer(serializers.ModelSerializer):
 
 
 class DailyPlanSerializer(serializers.ModelSerializer):
-    activities = DailyPlanActivitySerializer(many=True, read_only=True, source='activities')
+    activities = DailyPlanActivitySerializer(many=True, read_only=True)
 
     class Meta:
         model = DailyPlan

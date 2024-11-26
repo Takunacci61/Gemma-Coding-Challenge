@@ -1,5 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
+from datetime import timedelta
+import openai
 
 
 # Daily Routine
@@ -33,10 +36,57 @@ class Goal(models.Model):
     goal_end_date = models.DateField()
     feasibility_score = models.IntegerField(default=0)
 
+    def calculate_feasibility_score(self):
+        """
+        Calls Gemma AI to analyze goal feasibility.
+        Returns a score between 1 and 10.
+        """
+        try:
+            client = openai.OpenAI(
+                base_url=settings.GEMMA_BASE_URL,
+                api_key=settings.GEMMA_API_KEY
+            )
+
+            # Prepare the input for the AI model
+            input_data = {
+                "role": "user",
+                "content": (
+                    f"Goal Name: '{self.goal_name}'. "
+                    f"Analyze this goal for feasibility: '{self.goal_description}'. "
+                    f"The goal is to be completed in {self.goal_end_date - self.goal_start_date} days. "
+                    f"Rate its feasibility on a scale of 1 to 10, with 10 being very feasible. "
+                    f"Respond with only a single integer number between 1 and 10, inclusive, and no other text or special characters."
+                )
+            }
+
+            # Call Gemma AI model
+            completion = client.chat.completions.create(
+                model="google/gemma-2-27b-it",
+                messages=[input_data]
+            )
+
+            # Parse the response
+            response = completion.choices[0].message.content.strip()
+
+            print(f"Gemma AI response: {response}")
+
+            # Ensure the score is an integer between 1 and 10
+            score = int(response)
+            return max(1, min(score, 10))  # Clamp score between 1 and 10
+
+        except Exception as e:
+            # Handle errors and set a fallback score
+            print(f"Error calling Gemma AI: {e}")
+            return 5  # Default fallback score
+
     def save(self, *args, **kwargs):
         # Ensure goal period does not exceed 30 days
         if (self.goal_end_date - self.goal_start_date).days > 30:
             raise ValueError("Goal period cannot exceed 30 days.")
+
+        # Calculate the feasibility score using Gemma AI
+        self.feasibility_score = self.calculate_feasibility_score()
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -135,3 +185,5 @@ class GoalReport(models.Model):
 
     def __str__(self):
         return f"Goal Report for {self.goal.goal_name}"
+
+

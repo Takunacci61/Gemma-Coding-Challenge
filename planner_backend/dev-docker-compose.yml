@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:14
+    restart: always
+
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5434:5432"  # Map host port 5434 to container port 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Ensure data is persisted across container restarts
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+    environment:
+      # Django configs
+      SECRET_KEY: ${SECRET_KEY}
+      # Database configs
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db  # Use Docker service name "db" as host
+      DB_PORT: "5432"  # Use container's internal port 5432
+
+      # OpenAI configs
+      GEMMA_API_KEY: ${GEMMA_API_KEY}
+      GEMMA_BASE_URL: ${GEMMA_BASE_URL}
+
+
+
+# Declare the volume to persist PostgreSQL data
+volumes:
+  pgdata:
