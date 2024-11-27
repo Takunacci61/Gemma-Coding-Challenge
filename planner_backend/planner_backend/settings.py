@@ -18,7 +18,7 @@ DEBUG = True
 GEMMA_API_KEY = config('GEMMA_API_KEY')
 GEMMA_BASE_URL = config('GEMMA_BASE_URL')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
