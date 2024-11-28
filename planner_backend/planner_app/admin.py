@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import *
+from django.core.exceptions import ValidationError
+from django.contrib import messages
 
 
 @admin.register(DailyRoutine)
@@ -9,11 +11,25 @@ class DailyRoutineAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'activity_name')
 
 
+
+
 @admin.register(Goal)
 class GoalAdmin(admin.ModelAdmin):
-    list_display = ('user', 'goal_name', 'goal_start_date', 'goal_end_date', 'feasibility_score')
+    list_display = ('goal_name', 'user', 'status', 'goal_start_date', 'goal_end_date', 'feasibility_score')
+    list_filter = ('status', 'goal_start_date', 'goal_end_date')
     search_fields = ('goal_name', 'user__username')
-    list_filter = ('goal_start_date', 'goal_end_date')
+    ordering = ('-goal_start_date',)
+
+    def save_model(self, request, obj, form, change):
+        """
+        Overrides save_model to handle ValidationError gracefully.
+        """
+        try:
+            obj.save()
+        except ValidationError as e:
+            self.message_user(request, f"Error: {e.message}", level=messages.ERROR)
+        else:
+            self.message_user(request, "Goal saved successfully.", level=messages.SUCCESS)
 
 
 # Inline model for DailyPlanActivity
@@ -24,20 +40,22 @@ class DailyPlanActivityInline(admin.TabularInline):  # You can also use admin.St
 
 @admin.register(DailyPlan)
 class DailyPlanAdmin(admin.ModelAdmin):
-    list_display = ('plan_date', 'goal', 'status', 'day_number_display')
-    list_filter = ('status', 'plan_date', 'goal__goal_name')
-    search_fields = ('goal__goal_name', 'plan_date')
-    ordering = ('plan_date',)
-    date_hierarchy = 'plan_date'
-    inlines = [DailyPlanActivityInline]  # Add the inline model here
+    list_display = ('goal', 'plan_date', 'status', 'day_number')
+    list_filter = ('status', 'plan_date')
+    search_fields = ('goal__goal_name', 'goal__user__username')
 
-    def day_number_display(self, obj):
+    def save_model(self, request, obj, form, change):
         """
-        Display the day number in the admin panel.
+        Overrides save_model to handle ValidationError gracefully.
         """
-        return obj.day_number or "N/A"
-
-    day_number_display.short_description = "Day Number"
+        try:
+            obj.save()
+        except ValidationError as e:
+            # Add a user-friendly error message to the admin interface
+            self.message_user(request, f"Error: {e.message}", level=messages.ERROR)
+        else:
+            # Add a success message if the save was successful
+            self.message_user(request, "Daily plan saved successfully.", level=messages.SUCCESS)
 
 
 @admin.register(DailyPlanActivity)

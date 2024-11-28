@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     DailyRoutineViewSet, GoalViewSet, DailyPlanViewSet,
     DailyPlanActivityViewSet, UnplannedActivityViewSet,
-    DailyReportViewSet, GoalReportViewSet, GenerateDailyPlanAPIView
+    DailyReportViewSet, GoalReportViewSet, GenerateDailyPlanAPIView, RecentGoalView
 )
 
 router = DefaultRouter()
@@ -18,5 +18,6 @@ router.register('goal-reports', GoalReportViewSet, basename='goalreport')
 urlpatterns = [
     path('', include(router.urls)),  # Include router URLs
     path('generate-daily-plan/<int:goal_id>/', GenerateDailyPlanAPIView.as_view(), name='generate_daily_plan'),
+    path('goals/recent/for-user/', RecentGoalView.as_view(), name='recent-goal'),
 ]
 

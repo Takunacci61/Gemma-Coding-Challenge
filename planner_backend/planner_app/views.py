@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class GoalViewSet(viewsets.ModelViewSet):
     serializer_class = GoalSerializer
     permission_classes = [IsAuthenticated]  # Restrict access to authenticated users
+    http_method_names = ['get', 'post']
 
     def get_queryset(self):
         # Filter goals for the logged-in user
@@ -28,6 +29,7 @@ class GoalViewSet(viewsets.ModelViewSet):
 
 
 class DailyRoutineViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete']
     queryset = DailyRoutine.objects.all()
     serializer_class = DailyRoutineSerializer
     permission_classes = [IsAuthenticated]
@@ -38,6 +40,7 @@ class DailyRoutineViewSet(viewsets.ModelViewSet):
 
 
 class DailyPlanViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get']
     queryset = DailyPlan.objects.all()
     serializer_class = DailyPlanSerializer
     permission_classes = [IsAuthenticated]
@@ -49,6 +52,7 @@ class DailyPlanViewSet(viewsets.ModelViewSet):
 
 
 class DailyPlanActivityViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'put']
     queryset = DailyPlanActivity.objects.all()
     serializer_class = DailyPlanActivitySerializer
     permission_classes = [IsAuthenticated]
@@ -59,6 +63,7 @@ class DailyPlanActivityViewSet(viewsets.ModelViewSet):
 
 
 class UnplannedActivityViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post']
     queryset = UnplannedActivity.objects.all()
     serializer_class = UnplannedActivitySerializer
     permission_classes = [IsAuthenticated]
@@ -69,6 +74,7 @@ class UnplannedActivityViewSet(viewsets.ModelViewSet):
 
 
 class DailyReportViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get']
     queryset = DailyReport.objects.all()
     serializer_class = DailyReportSerializer
     permission_classes = [IsAuthenticated]
@@ -79,6 +85,7 @@ class DailyReportViewSet(viewsets.ModelViewSet):
 
 
 class GoalReportViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get']
     queryset = GoalReport.objects.all()
     serializer_class = GoalReportSerializer
     permission_classes = [IsAuthenticated]
@@ -282,3 +289,33 @@ class GenerateDailyPlanAPIView(APIView):
                 {"error": "Failed to generate daily plan. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# ------------------------ Get the Goal For the current active goal ------------------------
+class RecentGoalView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """
+        Retrieve the most recent goal with status 'Pending' or 'In Progress'.
+        """
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                {"detail": "Authentication credentials were not provided."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        recent_goal = Goal.objects.filter(
+            user=user,
+            status__in=['Pending', 'In Progress']
+        ).order_by('-id').first()
+
+        if not recent_goal:
+            return Response(
+                {"detail": "No recent goal found with status 'Pending' or 'In Progress'."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = RecentGoalSerializer(recent_goal)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     # Third Party Apps
     'rest_framework',
     'drf_yasg',
+    # 'corsheaders',
+    # 'rest_framework_simplejwt',
 ]
 INSTALLED_APPS += ['rest_framework_simplejwt.token_blacklist']
 # JWT Configuration
