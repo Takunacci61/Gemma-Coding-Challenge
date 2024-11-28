@@ -1,8 +1,8 @@
 # ------------------------ Backend Files and folders -----------------------
 venv
 planner_backend/planner_backend/.env
-#planner_backend/planner_app/migrations/
-#planner_backend/accounts/migrations
+planner_backend/planner_app/migrations/
+planner_backend/accounts/migrations
 /.idea
 /planner_backend/profile_pics
 #planner_backend/accounts/
