@@ -74,7 +74,11 @@ SWAGGER_SETTINGS = {
 
 INSTALLED_APPS += ['corsheaders']
 CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = [
+    'https://app.doxcert.com',
+    'http://localhost:8000',
 
+]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
