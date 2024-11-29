@@ -11,6 +11,14 @@ class DailyRoutineSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyRoutine
         fields = ['id', 'user', 'activity_name', 'start_time', 'end_time', 'days_of_week']
+        read_only_fields = ['id', 'user']
+
+    def create(self, validated_data):
+        # Set the user to the logged-in user
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['user'] = request.user
+        return super().create(validated_data)
 
 
 # Goal Serializer
