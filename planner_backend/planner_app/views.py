@@ -150,7 +150,7 @@ class GenerateDailyPlanAPIView(APIView):
 
             # Prepare input for the AI model
             input_content = (
-                f"Based on the following goal and progress, generate a daily plan for today with activities. "
+                f"Based on the following goal and progress, generate a daily plan for today with at least 5 activities. "
                 f"Goal Name: '{goal.goal_name}'. "
                 f"Goal Description: '{goal.goal_description}'. "
                 f"Goal Start Date: {goal.goal_start_date}. "

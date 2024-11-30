@@ -46,7 +46,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['user', 'date_of_birth', 'gender', 'bio', 'profile_picture']
+        read_only_fields = ['user']
+        fields = ['user', 'date_of_birth', 'gender', 'bio']
 
 
 # Notification Serializer
