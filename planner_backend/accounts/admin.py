@@ -4,7 +4,7 @@ from .models import *
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'date_of_birth', 'gender', 'bio')  # Customize fields to display in admin
+    list_display = ('user', 'date_of_birth', 'gender', 'bio')
     search_fields = ('user__username', 'gender')
 
 

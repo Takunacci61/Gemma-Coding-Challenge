@@ -1,19 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import (
-    DailyRoutineViewSet, GoalViewSet, DailyPlanViewSet,
-    DailyPlanActivityViewSet, UnplannedActivityViewSet,
-    DailyReportViewSet, GoalReportViewSet, GenerateDailyPlanAPIView, RecentGoalView
-)
+from .views import DailyRoutineViewSet, GoalViewSet,GenerateDailyPlanAPIView, RecentGoalView, DailyPlanActivityViewSet
+
 
 router = DefaultRouter()
 router.register('daily-routines', DailyRoutineViewSet, basename='dailyroutine')
 router.register('goals', GoalViewSet, basename='goal')
-router.register('daily-plans', DailyPlanViewSet, basename='dailyplan')
-router.register('daily-plan-activities', DailyPlanActivityViewSet, basename='dailyplanactivity')
-router.register('unplanned-activities', UnplannedActivityViewSet, basename='unplannedactivity')
-router.register('daily-reports', DailyReportViewSet, basename='dailyreport')
-router.register('goal-reports', GoalReportViewSet, basename='goalreport')
+router.register('daily-plan-activities-update', DailyPlanActivityViewSet, basename='daily-plan-activity-update')
 
 urlpatterns = [
     path('', include(router.urls)),  # Include router URLs

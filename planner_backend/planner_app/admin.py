@@ -11,8 +11,6 @@ class DailyRoutineAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'activity_name')
 
 
-
-
 @admin.register(Goal)
 class GoalAdmin(admin.ModelAdmin):
     list_display = ('goal_name', 'user', 'status', 'goal_start_date', 'goal_end_date', 'feasibility_score')
@@ -33,7 +31,7 @@ class GoalAdmin(admin.ModelAdmin):
 
 
 # Inline model for DailyPlanActivity
-class DailyPlanActivityInline(admin.TabularInline):  # You can also use admin.StackedInline
+class DailyPlanActivityInline(admin.TabularInline):
     model = DailyPlanActivity
     extra = 1  # Number of blank forms for new activities
 
@@ -43,6 +41,7 @@ class DailyPlanAdmin(admin.ModelAdmin):
     list_display = ('goal', 'plan_date', 'status', 'day_number')
     list_filter = ('status', 'plan_date')
     search_fields = ('goal__goal_name', 'goal__user__username')
+    inlines = [DailyPlanActivityInline]  # Added to display activities inline with the plan
 
     def save_model(self, request, obj, form, change):
         """
@@ -71,28 +70,8 @@ class DailyPlanActivityAdmin(admin.ModelAdmin):
         """
         Custom action to mark selected activities as completed.
         """
-        updated = queryset.update(status='Completed')
+        updated = queryset.update(status=True)
         self.message_user(request, f"{updated} activities marked as completed.")
 
     mark_completed.short_description = "Mark selected activities as Completed"
 
-
-@admin.register(UnplannedActivity)
-class UnplannedActivityAdmin(admin.ModelAdmin):
-    list_display = ('goal', 'activity_date', 'activity_name', 'start_time', 'end_time', 'effect')
-    list_filter = ('effect', 'activity_date')
-    search_fields = ('activity_name', 'goal__goal_name')
-
-
-@admin.register(DailyReport)
-class DailyReportAdmin(admin.ModelAdmin):
-    list_display = ('goal', 'report_date', 'model_notes', 'user_notes')
-    search_fields = ('goal__goal_name',)
-    list_filter = ('report_date',)
-
-
-@admin.register(GoalReport)
-class GoalReportAdmin(admin.ModelAdmin):
-    list_display = ('goal', 'completion_rate', 'report_date')
-    search_fields = ('goal__goal_name',)
-    list_filter = ('report_date',)

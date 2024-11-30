@@ -55,3 +55,28 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'user', 'message', 'is_read', 'created_at']
+
+
+# Account Registration Serializer
+class RegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'first_name', 'last_name']
+        extra_kwargs = {
+            'password': {'write_only': True},
+        }
+
+    def create(self, validated_data):
+        # Create User instance
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+        )
+
+        # Create an empty UserProfile instance linked to the user
+        UserProfile.objects.create(user=user)
+
+        return user

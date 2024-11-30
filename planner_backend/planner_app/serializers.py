@@ -1,9 +1,9 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
 from datetime import date
-from .models import DailyRoutine, Goal, DailyPlan, UnplannedActivity, DailyReport, GoalReport, DailyPlanActivity
-from django.core.exceptions import ValidationError
+from .models import DailyRoutine, Goal, DailyPlan, DailyPlanActivity
 from django.utils.timezone import now
+from django.conf import settings
+import openai
 
 
 # DailyRoutine Serializer
@@ -22,6 +22,7 @@ class DailyRoutineSerializer(serializers.ModelSerializer):
 
 
 # Goal Serializer
+
 class GoalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Goal
@@ -60,16 +61,102 @@ class GoalSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Automatically set the user to the currently logged-in user.
+        Add feasibility score and motivational notes.
         """
         user = self.context['request'].user
         validated_data['user'] = user
-        return super().create(validated_data)
+
+        # Call Gemma AI to calculate feasibility score and generate notes
+        goal = super().create(validated_data)
+        goal.feasibility_score = self.calculate_feasibility_score(goal)
+        goal.model_notes = self.generate_model_notes(goal)
+        goal.save()
+        return goal
+
+    def calculate_feasibility_score(self, goal):
+        """
+        Calls Gemma AI to analyze goal feasibility.
+        """
+        try:
+            client = openai.OpenAI(
+                base_url=settings.GEMMA_BASE_URL,
+                api_key=settings.GEMMA_API_KEY
+            )
+
+            input_data = {
+                "role": "user",
+                "content": (
+                    f"Please analyze the following goal for feasibility:\n"
+                    f"Goal Name: {goal.goal_name}\n"
+                    f"Goal Description: {goal.goal_description}\n"
+                    f"Timeframe: {(goal.goal_end_date - goal.goal_start_date).days} days\n"
+                    f"On a scale of 1 to 10 (1 being least feasible, 10 being most feasible), rate its feasibility.\n"
+                    f"Respond with only a single number between 1 and 10."
+                )
+            }
+
+            completion = client.chat.completions.create(
+                model="google/gemma-2-27b-it",
+                messages=[input_data]
+            )
+
+            response = completion.choices[0].message.content.strip()
+            score = int(response)
+            return max(1, min(score, 10))  # Clamp score between 1 and 10
+        except Exception as e:
+            print(f"Error calling Gemma AI: {e}")
+            return 5  # Default fallback score
+
+    def generate_model_notes(self, goal):
+        """
+        Generate motivational notes for the goal.
+        """
+        try:
+            client = openai.OpenAI(
+                base_url=settings.GEMMA_BASE_URL,
+                api_key=settings.GEMMA_API_KEY
+            )
+
+            input_data = {
+                "role": "user",
+                "content": (
+                    f"Please write a motivational paragraph to encourage someone working towards the following goal:\n"
+                    f"Goal Name: {goal.goal_name}\n"
+                    f"Goal Description: {goal.goal_description}"
+                )
+            }
+
+            completion = client.chat.completions.create(
+                model="google/gemma-2-27b-it",
+                messages=[input_data]
+            )
+
+            response = completion.choices[0].message.content.strip()
+            return response[:100]  # Ensure the text is within 100 words
+        except Exception as e:
+            print(f"Error generating motivational notes: {e}")
+            return (
+                "Keep going! Your goal is a beautiful journey of growth and discovery. "
+                "Every small step forward is a victory worth celebrating."
+            )
+
+
+class DailyPlanActivityStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyPlanActivity
+        fields = ['id', 'status']
 
 
 class DailyPlanActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyPlanActivity
         fields = ['id', 'plan', 'activity_name', 'start_time', 'end_time', 'status', 'notes', ]
+
+
+class DailyPlanActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyPlanActivity
+        fields = ['id', 'activity_name', 'start_time', 'end_time', 'status', 'notes']
 
 
 class DailyPlanSerializer(serializers.ModelSerializer):
@@ -97,28 +184,66 @@ class DailyPlanSerializer(serializers.ModelSerializer):
             if plan_date < goal.goal_start_date or plan_date > goal.goal_end_date:
                 raise serializers.ValidationError("The plan date must be within the goal's start and end dates.")
 
+        # Calculate day number
+        day_number = (plan_date - goal.goal_start_date).days + 1
+        if day_number < 1 or day_number > (goal.goal_end_date - goal.goal_start_date).days + 1:
+            raise serializers.ValidationError("The plan date is out of range for the goal's period.")
+
         return data
 
+    def create(self, validated_data):
+        """
+        Override the create method to handle goal status update and notes generation.
+        """
+        goal = validated_data.get('goal')
+        notes = validated_data.get('notes')
 
-# UnplannedActivity Serializer
-class UnplannedActivitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UnplannedActivity
-        fields = ['id', 'goal', 'activity_date', 'activity_name', 'start_time', 'end_time', 'reason', 'effect']
+        # Update goal status to 'In Progress' if it is currently 'Pending'
+        if goal.status == 'Pending':
+            goal.status = 'In Progress'
+            goal.save()
 
+        # Generate motivational notes if not already provided
+        if not notes:
+            validated_data['notes'] = self.generate_motivational_quote()
 
-# DailyReport Serializer
-class DailyReportSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DailyReport
-        fields = ['id', 'goal', 'model_notes', 'user_notes', 'report_date']
+        return super().create(validated_data)
 
+    def generate_motivational_quote(self):
+        """
+        Generate a motivational quote using the Gemma AI model.
+        """
+        try:
 
-# GoalReport Serializer
-class GoalReportSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GoalReport
-        fields = ['id', 'goal', 'model_notes', 'user_notes', 'completion_rate', 'report_date']
+            # Initialize OpenAI API client
+            client = openai.OpenAI(
+                base_url=settings.GEMMA_BASE_URL,
+                api_key=settings.GEMMA_API_KEY
+            )
+
+            # Prepare the input for the AI model
+            input_data = {
+                "role": "user",
+                "content": (
+                    "Generate a motivational quote that is playful, encouraging, "
+                    "and less than 50 words. It should inspire someone to achieve their daily plan."
+                )
+            }
+
+            # Call the Gemma AI model
+            completion = client.chat.completions.create(
+                model="google/gemma-2-27b-it",
+                messages=[input_data]
+            )
+
+            # Parse and return the response
+            quote = completion.choices[0].message.content.strip()
+            return quote
+
+        except Exception as e:
+            # Handle errors and provide a fallback quote
+            print(f"Error generating motivational quote: {e}")
+            return "Keep pushing forward—you're closer to success than you think!"
 
 
 # Recent Goal Serializer

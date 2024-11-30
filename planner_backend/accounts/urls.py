@@ -1,9 +1,13 @@
 from rest_framework.routers import DefaultRouter
-from .views import NotificationViewSet, UserProfileViewSet
-
+from django.urls import path, include
+from .views import NotificationViewSet, UserProfileView, RegisterViewSet
 
 router = DefaultRouter()
-router.register('user-profiles', UserProfileViewSet, basename='userprofile')
 router.register('notifications', NotificationViewSet, basename='notification')
-urlpatterns = router.urls
+router.register('register', RegisterViewSet, basename='register')
+
+urlpatterns = [
+    path('', include(router.urls)),
+    path('user-profile/', UserProfileView.as_view(), name='user-profile'),
+]
 

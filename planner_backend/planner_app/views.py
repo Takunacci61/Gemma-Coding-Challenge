@@ -1,7 +1,7 @@
 import re
 import json
 from rest_framework import viewsets
-from .models import *
+from rest_framework.viewsets import ModelViewSet
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated
 from datetime import datetime
@@ -29,7 +29,7 @@ class GoalViewSet(viewsets.ModelViewSet):
 
 
 class DailyRoutineViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get', 'post', 'patch', 'delete']
+    http_method_names = ['get', 'post']
     queryset = DailyRoutine.objects.all()
     serializer_class = DailyRoutineSerializer
     permission_classes = [IsAuthenticated]
@@ -39,63 +39,21 @@ class DailyRoutineViewSet(viewsets.ModelViewSet):
         return DailyRoutine.objects.filter(user=self.request.user)
 
 
-class DailyPlanViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get']
-    queryset = DailyPlan.objects.all()
-    serializer_class = DailyPlanSerializer
-    permission_classes = [IsAuthenticated]
-    http_method_names = ['get']
-
-    def get_queryset(self):
-        # Filter goals for the logged-in user
-        return DailyPlan.objects.filter(user=self.request.user)
-
-
-class DailyPlanActivityViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get', 'put']
+class DailyPlanActivityViewSet(ModelViewSet):
     queryset = DailyPlanActivity.objects.all()
-    serializer_class = DailyPlanActivitySerializer
+    serializer_class = DailyPlanActivityStatusSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['patch']
 
-    def get_queryset(self):
-        # Filter goals for the logged-in user
-        return DailyPlanActivity.objects.filter(user=self.request.user)
+    def partial_update(self, request, *args, **kwargs):
+        """Handle the PATCH request to update the status"""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-class UnplannedActivityViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get', 'post']
-    queryset = UnplannedActivity.objects.all()
-    serializer_class = UnplannedActivitySerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        # Filter goals for the logged-in user
-        return UnplannedActivity.objects.filter(user=self.request.user)
-
-
-class DailyReportViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get']
-    queryset = DailyReport.objects.all()
-    serializer_class = DailyReportSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        # Filter goals for the logged-in user
-        return DailyReport.objects.filter(user=self.request.user)
-
-
-class GoalReportViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get']
-    queryset = GoalReport.objects.all()
-    serializer_class = GoalReportSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        # Filter goals for the logged-in user
-        return GoalReport.objects.filter(user=self.request.user)
-
-
-# Generate Daily Plan
 
 class GenerateDailyPlanAPIView(APIView):
     """
@@ -123,11 +81,37 @@ class GenerateDailyPlanAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Determine the current day of the week
+            today_weekday_name = today.strftime('%A')  # e.g., 'Monday'
+
+            # Determine if today is a weekday or weekend
+            if today.weekday() < 5:
+                day_type = 'Weekday'
+            else:
+                day_type = 'Weekend'
+
+            applicable_days = [today_weekday_name, day_type]
+
+            # Fetch user's daily routines for today
+            daily_routines = DailyRoutine.objects.filter(
+                user=request.user,
+                days_of_week__in=applicable_days
+            )
+
+            # Prepare busy times from the daily routines
+            busy_times = []
+            for routine in daily_routines:
+                busy_times.append({
+                    'activity_name': routine.activity_name,
+                    'start_time': routine.start_time.strftime('%H:%M'),
+                    'end_time': routine.end_time.strftime('%H:%M'),
+                })
+
             # Fetch existing progress
             daily_plans = DailyPlan.objects.filter(goal=goal, plan_date__lt=today).order_by('plan_date')
             completed_activities_count = DailyPlanActivity.objects.filter(
                 plan__goal=goal,
-                status='Completed'
+                status=True
             ).count()
 
             # Prepare previous plans and progress data
@@ -150,12 +134,14 @@ class GenerateDailyPlanAPIView(APIView):
 
             # Prepare input for the AI model
             input_content = (
-                f"Based on the following goal and progress, generate a daily plan for today with at least 5 activities. "
+                f"Based on the following goal, progress, and user's busy times, generate a daily plan for today with at least 5 activities, "
+                f"scheduled outside of the user's busy times. "
                 f"Goal Name: '{goal.goal_name}'. "
                 f"Goal Description: '{goal.goal_description}'. "
                 f"Goal Start Date: {goal.goal_start_date}. "
                 f"Goal End Date: {goal.goal_end_date}. "
                 f"Completed Activities So Far: {completed_activities_count}. "
+                f"User's Busy Times Today: {json.dumps(busy_times)}. "
                 f"Previous Plans and Progress: {json.dumps(previous_plans_data)}. "
                 f"Your response must be valid JSON only, with the following structure:\n"
                 f"{{\n"
@@ -171,6 +157,7 @@ class GenerateDailyPlanAPIView(APIView):
                 f"  ]\n"
                 f"}}\n"
                 f"Ensure that 'start_time' and 'end_time' are valid times in 24-hour format (HH:MM). "
+                f"Ensure that none of the activities overlap with the user's busy times. "
                 f"If generating a plan for today, ensure that 'start_time' is greater than the current time ({timezone.now().strftime('%H:%M')}). "
                 f"Do not include any explanation or additional text. Only output the JSON data."
             )
@@ -242,13 +229,26 @@ class GenerateDailyPlanAPIView(APIView):
                             f"Start time {start_time_obj} is not after current time {current_time} in activity '{activity['activity_name']}'")
                         continue  # Skip activity that has already passed
 
+                    # Check for overlaps with user's busy times
+                    overlap = False
+                    for busy_time in busy_times:
+                        busy_start = datetime.strptime(busy_time['start_time'], time_format).time()
+                        busy_end = datetime.strptime(busy_time['end_time'], time_format).time()
+                        if (start_time_obj < busy_end and end_time_obj > busy_start):
+                            overlap = True
+                            logger.error(
+                                f"Activity '{activity['activity_name']}' overlaps with busy time '{busy_time['activity_name']}' from {busy_start} to {busy_end}")
+                            break
+                    if overlap:
+                        continue  # Skip activities that overlap with busy times
+
                     activity_instances.append(DailyPlanActivity(
                         plan=daily_plan,
                         activity_name=activity["activity_name"],
                         start_time=start_time_obj,
                         end_time=end_time_obj,
                         notes=activity.get("notes", ""),
-                        status='Pending'
+                        status=False
                     ))
                 except (KeyError, ValueError) as e:
                     logger.error(f"Error parsing activity data: {e}")

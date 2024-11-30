@@ -15,7 +15,6 @@ class UserProfile(models.Model):
     )
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
