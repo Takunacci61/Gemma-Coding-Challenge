@@ -241,5 +241,5 @@ flutter test
 - **Takunacci** - Frontend Developer
 
 ### Download The Prototype
-!https://drive.google.com/file/d/1X1bjm_kCfXtZXUHYsZPpqFiqPiRvIx2U/view?usp=sharing
+https://drive.google.com/file/d/1X1bjm_kCfXtZXUHYsZPpqFiqPiRvIx2U/view?usp=sharing
 
