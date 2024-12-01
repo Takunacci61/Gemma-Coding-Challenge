@@ -1,4 +1,4 @@
-# Gemma-Coding-Challenge-
+# Gemma-2-Coding-Challenge-2024
 This project was developed as a solution for the Gemma Coding Challenge
 
 # 📘 Noma's Planner
