@@ -233,26 +233,7 @@ flutter test
 
 ![Screenshot 2024-12-01 at 12 41 25](https://github.com/user-attachments/assets/8334890b-b1d3-4b8f-adba-f6f305b12aae)
 
----
 
-## 📜 License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 🤝 Contributing
-1. Fork the repository.
-2. Create a new feature branch:
-   ```bash
-   git checkout -b feature-name
-   ```
-3. Commit your changes and push to the branch:
-   ```bash
-   git push origin feature-name
-   ```
-4. Create a pull request on GitHub.
-
----
 
 ## 👥 Authors
 
