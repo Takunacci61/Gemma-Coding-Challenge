@@ -222,6 +222,7 @@ Run Flutter tests:
 ```bash
 flutter test
 ```
+![Screenshot 2024-12-01 at 12 41 25](https://github.com/user-attachments/assets/8334890b-b1d3-4b8f-adba-f6f305b12aae)
 
 ---
 
